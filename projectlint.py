@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import abc
 import argparse
 import sys
 import typing as t
@@ -48,9 +49,11 @@ class GithubWorkflow:
             return yaml.safe_load(f)
 
 
-class Rule:
+class Rule(abc.ABC):
+    @abc.abstractmethod
     def active(self, project: Project) -> bool: ...
 
+    @abc.abstractmethod
     def check(self, project: Project) -> t.List[ProjectInfo]: ...
 
     def github_workflows(self, project: Project) -> t.List[GithubWorkflow]:
@@ -71,7 +74,7 @@ class PHPComposerDeps(Rule):
         file = project.path / "composer.json"
         with file.open() as f:
             data = json.load(f)
-        infos = []
+        infos: t.List[ProjectInfo] = []
 
         # we should support "oldest supported PHP version" and newer
         if "require" not in data:
@@ -138,7 +141,7 @@ class PHPComposerLock(Rule):
 
     def check(self, project: Project) -> t.List[ProjectInfo]:
         # check that composer.lock is up to date with composer.json
-        infos = []
+        infos: t.List[ProjectInfo] = []
         json_modified = (project.path / "composer.json").stat().st_mtime
         lock_modified = (project.path / "composer.lock").stat().st_mtime
         if json_modified > lock_modified:
@@ -155,7 +158,7 @@ class GithubActionsOn(Rule):
         return len(self.github_workflows(project)) != 0
 
     def check(self, project: Project) -> t.List[ProjectInfo]:
-        infos = []
+        infos: t.List[ProjectInfo] = []
         for wf in self.github_workflows(project):
             logging.debug(f"Checking {wf.path}")
             data = wf.load()
@@ -185,7 +188,7 @@ class GithubActionsRunsOn(Rule):
         return len(self.github_workflows(project)) != 0
 
     def check(self, project: Project) -> t.List[ProjectInfo]:
-        infos = []
+        infos: t.List[ProjectInfo] = []
         for wf in self.github_workflows(project):
             logging.debug(f"Checking {wf.path}")
             data = wf.load()
@@ -202,16 +205,18 @@ class GithubActionsRunsOn(Rule):
                     )
         return infos
 
+
 class GithubActionsPHPVersions(Rule):
     """
     When testing PHP projects, we should test against all currently-supported
     versions of PHP, and not deprecated versions.
     """
+
     def active(self, project: Project) -> bool:
         return len(self.github_workflows(project)) != 0
 
     def check(self, project: Project) -> t.List[ProjectInfo]:
-        infos = []
+        infos: t.List[ProjectInfo] = []
         for wf in self.github_workflows(project):
             logging.debug(f"Checking {wf.path}")
             data = wf.load()
@@ -265,7 +270,7 @@ class GithubActionsActionVersions(Rule):
             "php-actions/composer": "v6",
             "shivammathur/setup-php": "v2",
         }
-        infos = []
+        infos: t.List[ProjectInfo] = []
         for wf in self.github_workflows(project):
             logging.debug(f"Checking {wf.path}")
             data = wf.load()
@@ -289,15 +294,18 @@ class GithubActionsActionVersions(Rule):
                                 )
         return infos
 
+
 class GithubActionsVendoredPHPTools(Rule):
     def active(self, project: Project) -> bool:
-        return (len(self.github_workflows(project)) != 0) and (project.path / "composer.json").exists()
+        return (len(self.github_workflows(project)) != 0) and (
+            project.path / "composer.json"
+        ).exists()
 
     def check(self, project: Project) -> t.List[ProjectInfo]:
         composer_data = json.load((project.path / "composer.json").open())
         vendored_tools = composer_data.get("require-dev", {}).keys()
 
-        infos = []
+        infos: t.List[ProjectInfo] = []
         for tool in vendored_tools:
             logging.debug(f"Checking that {tool} is used in a workflow")
             binary = tool.split("/")[-1]
@@ -321,7 +329,8 @@ class GithubActionsVendoredPHPTools(Rule):
                 )
         return infos
 
-def main(args: t.List[str]) -> int:
+
+def main(argv: t.Sequence[str]) -> int:
     parser = argparse.ArgumentParser(description="Lint a project")
     parser.add_argument(
         "project", help="The project to lint", type=Path, default=Path.cwd()
@@ -329,7 +338,7 @@ def main(args: t.List[str]) -> int:
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="Show verbose output"
     )
-    args = parser.parse_args(args[1:])
+    args = parser.parse_args(argv[1:])
 
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
@@ -338,7 +347,8 @@ def main(args: t.List[str]) -> int:
 
     log.info(f"Linting project {args.project}")
 
-    rules = [r() for r in Rule.__subclasses__()]
+    rule_subclasses: t.List[t.Type[Rule]] = Rule.__subclasses__()
+    rules: t.List[Rule] = [r() for r in rule_subclasses]
     fail = False
 
     project = Project(args.project)

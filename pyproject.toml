@@ -1,0 +1,35 @@
+[project]
+name = "projectlint"
+version = "0.0.0"
+authors = [
+    {name = "Shish", email = "shish@shishnet.org"},
+]
+description = "Project linter"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "mypy",
+    "pytest-cov",
+    "types-PyYAML",
+]
+
+[tool.setuptools]
+py-modules = ["projectlint"]
+
+[tool.pytest.ini_options]
+addopts = "--cov --cov-report term-missing --cov-fail-under 95"
+
+[tool.coverage.run]
+source = ["projectlint"]
+
+[tool.isort]
+profile = "black"
+
+[tool.mypy]
+files = "projectlint.py"
