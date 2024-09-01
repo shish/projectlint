@@ -2,6 +2,10 @@ import typing as t
 import abc
 import yaml
 from pathlib import Path
+import logging
+
+log = logging.getLogger(__name__)
+
 
 class Project:
     def __init__(self, path: Path):
@@ -36,19 +40,44 @@ class GithubWorkflow:
 
 
 class Rule(abc.ABC):
-    @abc.abstractmethod
-    def active(self, project: Project) -> bool: ...
+    IGNORE_PATHS = [
+        "node_modules",
+        "vendor",
+        "target",
+        "venv",
+        "__pycache__",
+        ".git",
+        ".hg",
+        ".sl",
+    ]
+    RELEVANT_PATTERNS = []
+
+    def __init__(self, project: Project):
+        self.project = project
+        self.relevant_paths = []
+        for pattern in self.RELEVANT_PATTERNS:
+            for file in self.find_files(pattern):
+                self.relevant_paths.append(file)
+
+    def active(self) -> bool:
+        return bool(self.relevant_paths)
 
     @abc.abstractmethod
-    def check(self, project: Project) -> t.List[ProjectInfo]: ...
+    def check(self) -> t.Iterator[ProjectInfo]:
+        ...
 
-    def github_workflows(self, project: Project) -> t.List[GithubWorkflow]:
-        if not (project.path / ".github" / "workflows").exists():
-            return []
-        return list(
-            GithubWorkflow(p)
-            for p in (project.path / ".github" / "workflows").iterdir()
-            if p.is_file() and p.name.endswith(".yml")
-        )
+    def find_files(self, pattern: str) -> t.Iterator[Path]:
+        return [
+            p
+            for p in self.project.path.rglob(pattern)
+            if not any(p.parts[i] in self.IGNORE_PATHS for i in range(len(p.parts)))
+        ]
 
+class FileRule(Rule):
+    def check(self) -> t.Iterator[ProjectInfo]:
+        for path in self.relevant_paths:
+            log.debug(f"...check_file({path})")
+            yield from self.check_file(path)
 
+    @abc.abstractmethod
+    def check_file(self, path: Path) -> t.Iterator[ProjectInfo]: ...

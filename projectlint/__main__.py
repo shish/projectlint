@@ -10,10 +10,18 @@ from .common import Project, ProjectInfo, ProjectError, ProjectWarning, Rule
 
 from .rules.github import *
 from .rules.php import *
+from .rules.js import *
+from .rules.docker import *
 
 
 log = logging.getLogger(__name__)
 
+
+def get_subclasses(cls: t.Type[t.Any]) -> t.List[t.Type[t.Any]]:
+    return cls.__subclasses__() + [g for s in cls.__subclasses__() for g in get_subclasses(s)]
+
+def get_rules() -> t.List[t.Type[Rule]]:
+    return [r for r in get_subclasses(Rule) if "rules" in r.__module__]
 
 def main(argv: t.Sequence[str]) -> int:
     parser = argparse.ArgumentParser(description="Lint a project")
@@ -32,18 +40,18 @@ def main(argv: t.Sequence[str]) -> int:
 
     log.info(f"Linting project {args.project}")
 
-    rule_subclasses: t.List[t.Type[Rule]] = Rule.__subclasses__()
-    rules: t.List[Rule] = [r() for r in rule_subclasses]
+    project = Project(args.project)
+    rule_subclasses: t.List[t.Type[Rule]] = get_rules()
+    rules: t.List[Rule] = [r(project) for r in rule_subclasses]
     fail = False
 
-    project = Project(args.project)
     for rule in rules:
-        if not rule.active(project):
+        if not rule.active():
             log.debug(f"Skipping {rule.__class__.__name__}")
             continue
 
-        log.debug(f"Checking {rule.__class__.__name__}")
-        infos = rule.check(project)
+        log.debug(f"{rule.__class__.__name__}.check()")
+        infos = rule.check()
         for info in infos:
             if isinstance(info, ProjectError):
                 print(f"Error: {info.file}:{info.position}: {info.message}")
