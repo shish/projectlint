@@ -18,10 +18,14 @@ log = logging.getLogger(__name__)
 
 
 def get_subclasses(cls: t.Type[t.Any]) -> t.List[t.Type[t.Any]]:
-    return cls.__subclasses__() + [g for s in cls.__subclasses__() for g in get_subclasses(s)]
+    return cls.__subclasses__() + [
+        g for s in cls.__subclasses__() for g in get_subclasses(s)
+    ]
+
 
 def get_rules() -> t.List[t.Type[Rule]]:
     return [r for r in get_subclasses(Rule) if "rules" in r.__module__]
+
 
 def main(argv: t.Sequence[str]) -> int:
     parser = argparse.ArgumentParser(description="Lint a project")

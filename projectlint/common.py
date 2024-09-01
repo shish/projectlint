@@ -50,21 +50,15 @@ class Rule(abc.ABC):
         ".hg",
         ".sl",
     ]
-    RELEVANT_PATTERNS = []
 
     def __init__(self, project: Project):
         self.project = project
-        self.relevant_paths = []
-        for pattern in self.RELEVANT_PATTERNS:
-            for file in self.find_files(pattern):
-                self.relevant_paths.append(file)
-
-    def active(self) -> bool:
-        return bool(self.relevant_paths)
 
     @abc.abstractmethod
-    def check(self) -> t.Iterator[ProjectInfo]:
-        ...
+    def active(self) -> bool: ...
+
+    @abc.abstractmethod
+    def check(self) -> t.Iterator[ProjectInfo]: ...
 
     def find_files(self, pattern: str) -> t.Iterator[Path]:
         return [
@@ -73,7 +67,20 @@ class Rule(abc.ABC):
             if not any(p.parts[i] in self.IGNORE_PATHS for i in range(len(p.parts)))
         ]
 
+
 class FileRule(Rule):
+    RELEVANT_PATTERNS = []
+
+    def __init__(self, project: Project):
+        super().__init__(project)
+        self.relevant_paths = []
+        for pattern in self.RELEVANT_PATTERNS:
+            for file in self.find_files(pattern):
+                self.relevant_paths.append(file)
+
+    def active(self) -> bool:
+        return bool(self.relevant_paths)
+
     def check(self) -> t.Iterator[ProjectInfo]:
         for path in self.relevant_paths:
             log.debug(f"...check_file({path})")
