@@ -2,13 +2,15 @@ import json
 import typing as t
 from pathlib import Path
 
-from ..common import Project, ProjectInfo, ProjectError, ProjectWarning, Rule, FileRule
+from ..common import ProjectInfo, ProjectError, ProjectWarning, FileRule, Versions
 
 
 # https://www.php.net/supported-versions.php
-PHP_DEPRECATED = ["7", "8.0", "8.1"]
-PHP_STABLE = ["8.2", "8.3"]
-PHP_UNSTABLE = ["8.4"]
+class PHPVersions(Versions):
+    DEPRECATED = ["7", "8.0", "8.1"]
+    STABLE = ["8.2", "8.3", "8.4"]
+    UNSTABLE = []
+    PLATFORM = "8.2.0"
 
 
 class PHPComposerPlatform(FileRule):
@@ -18,9 +20,9 @@ class PHPComposerPlatform(FileRule):
         data = json.load(file.open())
 
         php_version = data.get("config", {}).get("platform", {}).get("php")
-        if php_version is not None and php_version != f"{PHP_STABLE[0]}.0":
+        if php_version is not None and php_version != PHPVersions.PLATFORM:
             yield ProjectWarning(
-                f"should be {PHP_STABLE[0]}.0, is {php_version}",
+                f"should be {PHPVersions.PLATFORM}, is {php_version}",
                 file=file,
                 position="config.platform.php",
             )
@@ -44,9 +46,9 @@ class PHPComposerDeps(FileRule):
             )
         else:
             php_version = data["require"]["php"]
-            if php_version != f"^{PHP_STABLE[0]}":
+            if php_version != f"^{PHPVersions.STABLE[0]}":
                 yield ProjectWarning(
-                    f"should be ^{PHP_STABLE[0]}, is {php_version}",
+                    f"should be ^{PHPVersions.STABLE[0]}, is {php_version}",
                     file=file,
                     position="require.php",
                 )
@@ -59,11 +61,11 @@ class PHPComposerDeps(FileRule):
             )
 
         else:
-            for tool, stable in {
-                "phpunit/phpunit": "^11.0",
-                "phpstan/phpstan": "^1.12",
-                "friendsofphp/php-cs-fixer": "^3.64",
-            }.items():
+            for (tool, stable, config) in [
+                ("phpunit/phpunit", "^11.0", "phpunit.xml.dist"),
+                ("phpstan/phpstan", "^2.0", "phpstan.neon.dist"),
+                ("friendsofphp/php-cs-fixer", "^3.64", ".php-cs-fixer.dist.php"),
+            ]:
                 if tool not in data["require-dev"]:
                     yield ProjectWarning(
                         f"{tool} should be required",
@@ -76,6 +78,12 @@ class PHPComposerDeps(FileRule):
                     if version != stable:
                         yield ProjectWarning(
                             f"should be {stable}, is {version}",
+                            file=file,
+                            position=f"require-dev.{tool}",
+                        )
+                    if not (file.parent / config).exists():
+                        yield ProjectWarning(
+                            f"{config} should be present",
                             file=file,
                             position=f"require-dev.{tool}",
                         )

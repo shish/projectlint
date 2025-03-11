@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 
+# ruff: noqa: F403
+#
 import argparse
 import sys
 import typing as t
 from pathlib import Path
 import logging
+import inspect
 
-from .common import Project, ProjectInfo, ProjectError, ProjectWarning, Rule
+from .common import Project, ProjectError, ProjectWarning, Rule
 
 from .rules.github import *
 from .rules.php import *
@@ -24,7 +27,7 @@ def get_subclasses(cls: t.Type[t.Any]) -> t.List[t.Type[t.Any]]:
 
 
 def get_rules() -> t.List[t.Type[Rule]]:
-    return [r for r in get_subclasses(Rule) if "rules" in r.__module__]
+    return [r for r in get_subclasses(Rule) if not inspect.isabstract(r)]
 
 
 def main(argv: t.Sequence[str]) -> int:

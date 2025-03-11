@@ -2,14 +2,20 @@ import json
 import typing as t
 from pathlib import Path
 
-from ..common import Project, ProjectInfo, ProjectError, ProjectWarning, FileRule
+from ..common import ProjectInfo, ProjectWarning, FileRule, Versions
+
+
+class NodeVersions(Versions):
+    DEPRECATED = ["12", "14", "16", "18"]
+    STABLE = ["20"]
+    UNSTABLE = ["22"]
 
 
 class JSPackageDeps(FileRule):
     RELEVANT_PATTERNS = ["package.json"]
     EXPECTED_PACKAGES = {
         "react": "^18",
-        "typescript": "^5.4",
+        "typescript": "^5.5",
     }
 
     def check_file(self, file: Path) -> t.Iterator[ProjectInfo]:

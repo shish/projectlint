@@ -58,9 +58,9 @@ class Rule(abc.ABC):
     def active(self) -> bool: ...
 
     @abc.abstractmethod
-    def check(self) -> t.Iterator[ProjectInfo]: ...
+    def check(self) -> t.Iterable[ProjectInfo]: ...
 
-    def find_files(self, pattern: str) -> t.Iterator[Path]:
+    def find_files(self, pattern: str) -> t.Iterable[Path]:
         return [
             p
             for p in self.project.path.rglob(pattern)
@@ -87,4 +87,10 @@ class FileRule(Rule):
             yield from self.check_file(path)
 
     @abc.abstractmethod
-    def check_file(self, path: Path) -> t.Iterator[ProjectInfo]: ...
+    def check_file(self, file: Path) -> t.Iterator[ProjectInfo]: ...
+
+
+class Versions:
+    DEPRECATED: t.List[str]
+    STABLE: t.List[str]
+    UNSTABLE: t.List[str]

@@ -1,23 +1,14 @@
 [project]
 name = "projectlint"
 version = "0.0.0"
-authors = [
-    {name = "Shish", email = "shish@shishnet.org"},
-]
+authors = [{ name = "Shish", email = "shish@shishnet.org" }]
 description = "Project linter"
 readme = "README.md"
 requires-python = ">=3.8"
-dependencies = [
-    "pyyaml",
-]
+dependencies = ["pyyaml"]
 
 [project.optional-dependencies]
-dev = [
-    "ruff",
-    "mypy",
-    "pytest-cov",
-    "types-PyYAML",
-]
+dev = ["ruff", "mypy", "pytest-cov", "types-PyYAML"]
 
 [tool.setuptools]
 py-modules = ["projectlint"]
@@ -32,4 +23,4 @@ source = ["projectlint"]
 profile = "black"
 
 [tool.mypy]
-files = "projectlint.py"
+files = "projectlint/"

@@ -7,7 +7,7 @@ An opinionated high-level project-configuration mega-linter, checking things suc
 Install
 =======
 ```
-pip install -e .
+pip install -e '.[dev]'
 ```
 
 Run
@@ -16,6 +16,12 @@ Run
 python -m projectlint ~/Projects/MyProject
 ```
 
+Test
+====
+```
+python -m mypy
+ruff check projectlint
+```
 
 TODO
 ====

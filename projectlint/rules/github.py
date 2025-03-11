@@ -1,6 +1,7 @@
 import typing as t
 import logging
 import json
+import abc
 from pathlib import Path
 
 from ..common import (
@@ -10,13 +11,16 @@ from ..common import (
     ProjectWarning,
     Rule,
     FileRule,
+    Versions,
 )
-from .php import PHP_DEPRECATED, PHP_STABLE, PHP_UNSTABLE
+from . import php
+from . import python
+from . import js
 
 log = logging.getLogger(__name__)
 
 
-class GithubActionsOn(FileRule):
+class On(FileRule):
     RELEVANT_PATTERNS = [".github/workflows/*.yml"]
 
     def check_file(self, file: Path) -> t.Iterator[ProjectInfo]:
@@ -40,7 +44,7 @@ class GithubActionsOn(FileRule):
                 )
 
 
-class GithubActionsRunsOn(FileRule):
+class RunsOn(FileRule):
     RELEVANT_PATTERNS = [".github/workflows/*.yml"]
 
     def check_file(self, file: Path) -> t.Iterator[ProjectInfo]:
@@ -57,13 +61,17 @@ class GithubActionsRunsOn(FileRule):
                 )
 
 
-class GithubActionsPHPMatrixVersions(FileRule):
+class BaseVersionsMatrix(FileRule):
     """
-    When testing PHP projects, we should test against all currently-supported
-    versions of PHP, and not deprecated versions.
+    When an action runs on a matrix of versions, we should test against
+    all currently-supported versions, and not deprecated ones.
     """
 
     RELEVANT_PATTERNS = [".github/workflows/*.yml"]
+
+    @property
+    @abc.abstractmethod
+    def VERSIONS(cls) -> Versions: ...
 
     def check_file(self, file: Path) -> t.Iterator[ProjectInfo]:
         wf = GithubWorkflow(file)
@@ -72,37 +80,48 @@ class GithubActionsPHPMatrixVersions(FileRule):
         for name, job in jobs.items():
             matrix = job.get("strategy", {}).get("matrix", {})
             for key in matrix:
-                if key.startswith("php"):
+                if key.startswith(self.NAME.lower()):
                     versions = matrix[key]
-                    if len(versions) > 1 and any(
-                        version[0] == "8" for version in versions
-                    ):
-                        # This looks like a PHP versions matrix, let's check it
-                        for deprecated in PHP_DEPRECATED:
-                            for version in versions:
-                                if version.startswith(deprecated):
-                                    yield ProjectError(
-                                        f"PHP {version} is deprecated",
-                                        file=wf.path,
-                                        position=f"jobs.{name}.strategy.matrix.{key}",
-                                    )
-                        for stable in PHP_STABLE:
-                            if stable not in versions:
+                    for deprecated in self.VERSIONS.DEPRECATED:
+                        for version in versions:
+                            if version.startswith(deprecated):
                                 yield ProjectError(
-                                    f"PHP {stable} is not tested",
+                                    f"{self.NAME} {version} is deprecated",
                                     file=wf.path,
                                     position=f"jobs.{name}.strategy.matrix.{key}",
                                 )
-                        for unstable in PHP_UNSTABLE:
-                            if unstable not in versions:
-                                yield ProjectInfo(
-                                    f"PHP {unstable} is not tested",
-                                    file=wf.path,
-                                    position=f"jobs.{name}.strategy.matrix.{key}",
-                                )
+                    for stable in self.VERSIONS.STABLE:
+                        if stable not in versions:
+                            yield ProjectError(
+                                f"{self.NAME} {stable} is not tested",
+                                file=wf.path,
+                                position=f"jobs.{name}.strategy.matrix.{key}",
+                            )
+                    for unstable in self.VERSIONS.UNSTABLE:
+                        if unstable not in versions:
+                            yield ProjectInfo(
+                                f"{self.NAME} {unstable} is not tested",
+                                file=wf.path,
+                                position=f"jobs.{name}.strategy.matrix.{key}",
+                            )
 
 
-class GithubActionsActionVersions(FileRule):
+class PHPVersionsMatrix(BaseVersionsMatrix):
+    NAME = "PHP"
+    VERSIONS = php.PHPVersions
+
+
+class PythonVersionsMatrix(BaseVersionsMatrix):
+    NAME = "Python"
+    VERSIONS = python.PythonVersions
+
+
+class NodeVersionsMatrix(BaseVersionsMatrix):
+    NAME = "Node"
+    VERSIONS = js.NodeVersions
+
+
+class ActionVersions(FileRule):
     RELEVANT_PATTERNS = [".github/workflows/*.yml"]
 
     def check_file(self, file: Path) -> t.Iterator[ProjectInfo]:
@@ -133,7 +152,7 @@ class GithubActionsActionVersions(FileRule):
                             )
 
 
-class GithubActionsVendoredPHPTools(Rule):
+class VendoredPHPTools(Rule):
     def active(self) -> bool:
         wfs = self.find_files(".github/workflows/*.yml")
         comps = self.find_files("composer.json")
@@ -149,9 +168,9 @@ class GithubActionsVendoredPHPTools(Rule):
             dev_deps.extend(composer_data.get("require-dev", {}).keys())
 
         known_tools = {
-            "phpunit/phpunit": ["vendor/bin/phpunit", "composer test"],
-            "phpstan/phpstan": ["vendor/bin/phpunit", "composer stan"],
-            "friendsofphp/php-cs-fixer": ["vendor/bin/phpunit", "composer format"],
+            "phpunit/phpunit": ["composer test"],
+            "phpstan/phpstan": ["composer analyse-ci"],
+            "friendsofphp/php-cs-fixer": ["composer format"],
         }
 
         for dep in dev_deps:
@@ -173,7 +192,7 @@ class GithubActionsVendoredPHPTools(Rule):
                                     break
             if not tool_used:
                 yield ProjectWarning(
-                    f"{binary} is vendored but not used in a workflow",
+                    f"{binaries[0]} is vendored but not used in a workflow",
                     file=None,
                     position=f"require-dev.{tool}",
                 )
