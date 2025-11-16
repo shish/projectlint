@@ -6,16 +6,16 @@ from ..common import ProjectInfo, ProjectWarning, FileRule, Versions
 
 
 class NodeVersions(Versions):
-    DEPRECATED = ["12", "14", "16", "18"]
-    STABLE = ["20"]
-    UNSTABLE = ["22"]
+    DEPRECATED = ["12", "14", "16", "18", "20"]
+    STABLE = ["22"]
+    UNSTABLE = ["24"]
 
 
 class JSPackageDeps(FileRule):
     RELEVANT_PATTERNS = ["package.json"]
     EXPECTED_PACKAGES = {
-        "react": "^18",
-        "typescript": "^5.5",
+        "react": "^19",
+        "typescript": "^5.9",
     }
 
     def check_file(self, file: Path) -> t.Iterator[ProjectInfo]:

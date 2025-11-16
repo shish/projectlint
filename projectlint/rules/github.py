@@ -121,6 +121,29 @@ class NodeVersionsMatrix(BaseVersionsMatrix):
     VERSIONS = js.NodeVersions
 
 
+class PythonVersionSetup(FileRule):
+    VERSIONS = python.PythonVersions
+    RELEVANT_PATTERNS = [".github/workflows/*.yml"]
+
+    def check_file(self, file: Path) -> t.Iterator[ProjectInfo]:
+        wf = GithubWorkflow(file)
+        data = wf.load()
+        jobs = data.get("jobs", {})
+        for name, job in jobs.items():
+            steps = job.get("steps", {})
+            for n, step in enumerate(steps):
+                if step.get("uses", "").startswith("actions/setup-python"):
+                    version = step.get("with", {}).get("python-version")
+                    if "$" in version or ".x" in version:
+                        continue
+                    if version not in self.VERSIONS.STABLE:
+                        yield ProjectError(
+                            f"Python {version} is not stable",
+                            file=wf.path,
+                            position=f"jobs.{name}.steps[{n}].with.python-version",
+                        )
+
+
 class ActionVersions(FileRule):
     RELEVANT_PATTERNS = [".github/workflows/*.yml"]
 
@@ -128,7 +151,7 @@ class ActionVersions(FileRule):
         ACTION_VERSIONS = {
             "actions/checkout": "v4",
             "actions/cache": "v4",
-            "php-actions/composer": "v6",
+            "php-actions/composer": None,  # use default composer or setup-php instead
             "shivammathur/setup-php": "v2",
             "actions/setup-python": "v5",
         }
@@ -144,7 +167,13 @@ class ActionVersions(FileRule):
                         action = step["uses"]
                         version = None
                     if action in ACTION_VERSIONS:
-                        if version != ACTION_VERSIONS[action]:
+                        if ACTION_VERSIONS[action] is None:
+                            yield ProjectWarning(
+                                f"{action} should not be used",
+                                file=wf.path,
+                                position=f"jobs.{job_name}.steps[{step_n}].uses",
+                            )
+                        elif version != ACTION_VERSIONS[action]:
                             yield ProjectError(
                                 f"{action} should be {ACTION_VERSIONS[action]}, is {version}",
                                 file=wf.path,

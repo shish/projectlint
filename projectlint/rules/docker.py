@@ -10,8 +10,8 @@ class DockerBaseImages(FileRule):
     EXPECTED_IMAGES = {
         "node": js.NodeVersions.STABLE + js.NodeVersions.UNSTABLE,
         "python": python.PythonVersions.STABLE + python.PythonVersions.UNSTABLE,
-        "rust": ["1.80"],
-        "debian": ["bookworm", "stable"],
+        "rust": ["1.87"],
+        "debian": ["bookworm", "trixie", "stable-slim"],  # stable, testing
         "ubuntu": ["24.04", "noble"],
     }
 

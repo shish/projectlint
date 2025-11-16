@@ -15,6 +15,7 @@ from .rules.github import *
 from .rules.php import *
 from .rules.js import *
 from .rules.docker import *
+from .rules.python import *
 
 
 log = logging.getLogger(__name__)

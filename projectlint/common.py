@@ -49,6 +49,11 @@ class Rule(abc.ABC):
         ".git",
         ".hg",
         ".sl",
+        # hack: ignore big open source projects that Shish happens to work on
+        "zed",
+        "SDL",
+        "sdl",
+        "clap",
     ]
 
     def __init__(self, project: Project):

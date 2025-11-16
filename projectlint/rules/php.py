@@ -28,6 +28,46 @@ class PHPComposerPlatform(FileRule):
             )
 
 
+class PHPComposerScripts(FileRule):
+    RELEVANT_PATTERNS = ["composer.json"]
+
+    def check_file(self, file: Path) -> t.Iterator[ProjectInfo]:
+        data = json.load(file.open())
+
+        scripts = data.get("scripts", {})
+
+        if scripts.get("check") != ["@format", "@analyse", "@test"]:
+            yield ProjectWarning(
+                'check script should be ["@format", "@analyse", "@test"]',
+                file=file,
+                position="scripts.check",
+            )
+
+        if scripts.get("format") != "php-cs-fixer fix":
+            yield ProjectWarning(
+                'format script should be "php-cs-fixer fix"',
+                file=file,
+                position="scripts.format",
+            )
+
+        if (
+            scripts.get("analyse")
+            != "phpstan analyse --error-format=raw | sed -E 's/:([0-9]+):/:\\1 /'"
+        ):
+            yield ProjectWarning(
+                "analyse script should be \"phpstan analyse --error-format=raw | sed -E 's/:([0-9]+):/:\\1 /'\"",
+                file=file,
+                position="scripts.analyse",
+            )
+
+        if scripts.get("test") != "php -d xdebug.mode=coverage vendor/bin/phpunit":
+            yield ProjectWarning(
+                'test script should be "php -d xdebug.mode=coverage vendor/bin/phpunit"',
+                file=file,
+                position="scripts.test",
+            )
+
+
 class PHPComposerDeps(FileRule):
     RELEVANT_PATTERNS = ["composer.json"]
 
@@ -61,10 +101,10 @@ class PHPComposerDeps(FileRule):
             )
 
         else:
-            for (tool, stable, config) in [
-                ("phpunit/phpunit", "^11.0", "phpunit.xml.dist"),
-                ("phpstan/phpstan", "^2.0", "phpstan.neon.dist"),
-                ("friendsofphp/php-cs-fixer", "^3.64", ".php-cs-fixer.dist.php"),
+            for tool, stables, config in [
+                ("phpunit/phpunit", ["^11.5", "^12.1"], "phpunit.dist.xml"),
+                ("phpstan/phpstan", "^2.1", "phpstan.dist.neon"),
+                ("friendsofphp/php-cs-fixer", "^3.89", ".php-cs-fixer.dist.php"),
             ]:
                 if tool not in data["require-dev"]:
                     yield ProjectWarning(
@@ -75,9 +115,9 @@ class PHPComposerDeps(FileRule):
 
                 else:
                     version = data["require-dev"][tool]
-                    if version != stable:
+                    if version not in stables:
                         yield ProjectWarning(
-                            f"should be {stable}, is {version}",
+                            f"should be in {stables}, is {version}",
                             file=file,
                             position=f"require-dev.{tool}",
                         )
@@ -93,6 +133,12 @@ class PHPComposerLock(FileRule):
     RELEVANT_PATTERNS = ["composer.lock"]
 
     def check_file(self, file: Path) -> t.Iterator[ProjectInfo]:
+        # if composer.lock is in .gitignore, skip the check
+        gitignore = file.parent / ".gitignore"
+        if gitignore.exists():
+            if "composer.lock" in gitignore.read_text():
+                return
+
         # check that composer.lock is up to date with composer.json
         json_modified = file.with_suffix(".json").stat().st_mtime
         lock_modified = file.stat().st_mtime
