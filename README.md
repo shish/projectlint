@@ -4,27 +4,21 @@ An opinionated high-level project-configuration mega-linter, checking things suc
 * If a test matrix includes PHP, it should test all currently-supported PHP versions
 * If composer.json specifies a particular version of phpstan, then a github action should use that version instead of the default
 
-Install
-=======
+## Install
+
 ```
-pip install -e '.[dev]'
+pip install --group dev -e .
 ```
 
-Run
-===
+## Run
+
 ```
 python -m projectlint ~/Projects/MyProject
 ```
 
-Test
-====
+## Test
+
 ```
-python -m mypy
+mypy projectlint
 ruff check projectlint
 ```
-
-TODO
-====
-* Python version matrix
-* Python version in `setup-python.with.python-version`
-* PHP version in `setup-php.with`

@@ -8,8 +8,9 @@ log = logging.getLogger(__name__)
 
 
 class Project:
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, ignore_paths: t.Optional[t.List[str]] = None):
         self.path = path
+        self.ignore_paths = ignore_paths or []
 
 
 class ProjectInfo:
@@ -40,22 +41,6 @@ class GithubWorkflow:
 
 
 class Rule(abc.ABC):
-    IGNORE_PATHS = [
-        "node_modules",
-        "vendor",
-        "target",
-        "venv",
-        "__pycache__",
-        ".git",
-        ".hg",
-        ".sl",
-        # hack: ignore big open source projects that Shish happens to work on
-        "zed",
-        "SDL",
-        "sdl",
-        "clap",
-    ]
-
     def __init__(self, project: Project):
         self.project = project
 
@@ -69,7 +54,7 @@ class Rule(abc.ABC):
         return [
             p
             for p in self.project.path.rglob(pattern)
-            if not any(p.parts[i] in self.IGNORE_PATHS for i in range(len(p.parts)))
+            if not any(p.parts[i] in self.project.ignore_paths for i in range(len(p.parts)))
         ]
 
 

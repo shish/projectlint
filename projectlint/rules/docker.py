@@ -5,13 +5,14 @@ from ..common import ProjectInfo, ProjectError, FileRule
 from . import js
 from . import python
 
+
 class DockerBaseImages(FileRule):
     RELEVANT_PATTERNS = ["Dockerfile"]
     EXPECTED_IMAGES = {
         "node": js.NodeVersions.STABLE + js.NodeVersions.UNSTABLE,
         "python": python.PythonVersions.STABLE + python.PythonVersions.UNSTABLE,
         "rust": ["1.87"],
-        "debian": ["bookworm", "trixie", "stable-slim"],  # stable, testing
+        "debian": ["trixie", "stable"],  # stable, testing
         "ubuntu": ["24.04", "noble"],
     }
 

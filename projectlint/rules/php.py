@@ -1,5 +1,6 @@
 import json
 import typing as t
+import re
 from pathlib import Path
 
 from ..common import ProjectInfo, ProjectError, ProjectWarning, FileRule, Versions
@@ -50,10 +51,10 @@ class PHPComposerScripts(FileRule):
                 position="scripts.format",
             )
 
-        if (
-            scripts.get("analyse")
-            != "phpstan analyse --error-format=raw | sed -E 's/:([0-9]+):/:\\1 /'"
-        ):
+        if scripts.get("analyse") not in [
+            "phpstan analyse --error-format=raw | sed -E 's/:([0-9]+):/:\\1 /'",
+            "phpstan analyse --memory-limit 1G --error-format=raw | sed -E 's/:([0-9]+):/:\\1 /'",
+        ]:
             yield ProjectWarning(
                 "analyse script should be \"phpstan analyse --error-format=raw | sed -E 's/:([0-9]+):/:\\1 /'\"",
                 file=file,
@@ -81,9 +82,7 @@ class PHPComposerDeps(FileRule):
                 file=file,
             )
         elif "php" not in data["require"]:
-            yield ProjectWarning(
-                "PHP should be required", file=file, position="require"
-            )
+            yield ProjectWarning("PHP should be required", file=file, position="require")
         else:
             php_version = data["require"]["php"]
             if php_version != f"^{PHPVersions.STABLE[0]}":

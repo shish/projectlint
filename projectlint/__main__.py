@@ -8,6 +8,7 @@ import typing as t
 from pathlib import Path
 import logging
 import inspect
+import yaml
 
 from .common import Project, ProjectError, ProjectWarning, Rule
 
@@ -22,9 +23,7 @@ log = logging.getLogger(__name__)
 
 
 def get_subclasses(cls: t.Type[t.Any]) -> t.List[t.Type[t.Any]]:
-    return cls.__subclasses__() + [
-        g for s in cls.__subclasses__() for g in get_subclasses(s)
-    ]
+    return cls.__subclasses__() + [g for s in cls.__subclasses__() for g in get_subclasses(s)]
 
 
 def get_rules() -> t.List[t.Type[Rule]]:
@@ -33,12 +32,9 @@ def get_rules() -> t.List[t.Type[Rule]]:
 
 def main(argv: t.Sequence[str]) -> int:
     parser = argparse.ArgumentParser(description="Lint a project")
-    parser.add_argument(
-        "project", help="The project to lint", type=Path, default=Path.cwd()
-    )
-    parser.add_argument(
-        "--verbose", "-v", action="store_true", help="Show verbose output"
-    )
+    parser.add_argument("project", help="The project to lint", type=Path, default=Path.cwd())
+    parser.add_argument("--verbose", "-v", action="store_true", help="Show verbose output")
+    parser.add_argument("--config", "-c", help="Path to config file", type=Path)
     args = parser.parse_args(argv[1:])
 
     logging.basicConfig(
@@ -48,11 +44,16 @@ def main(argv: t.Sequence[str]) -> int:
 
     log.info(f"Linting project {args.project}")
 
-    project = Project(args.project)
+    if args.config.exists():
+        log.info(f"Loading config from {args.config}")
+        config = yaml.safe_load(args.config.read_text())
+
+    project = Project(args.project, config.get("ignore_paths"))
     rule_subclasses: t.List[t.Type[Rule]] = get_rules()
     rules: t.List[Rule] = [r(project) for r in rule_subclasses]
     fail = False
 
+    baseline_issues = set(config.get("baseline", []))
     for rule in rules:
         if not rule.active():
             log.debug(f"Skipping {rule.__class__.__name__}")
@@ -62,12 +63,14 @@ def main(argv: t.Sequence[str]) -> int:
         infos = rule.check()
         for info in infos:
             if isinstance(info, ProjectError):
-                print(f"Error: {info.file}:{info.position}: {info.message}")
+                msg = f"Error: {info.file}:{info.position}: {info.message}"
                 fail = True
             elif isinstance(info, ProjectWarning):
-                print(f"Warning: {info.file}:{info.position}: {info.message}")
+                msg = f"Warning: {info.file}:{info.position}: {info.message}"
             else:
-                print(f"Info: {info.file}:{info.position}: {info.message}")
+                msg = f"Info: {info.file}:{info.position}: {info.message}"
+            if msg not in baseline_issues:
+                print(msg)
 
     return 1 if fail else 0
 
