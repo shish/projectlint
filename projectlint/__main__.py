@@ -3,21 +3,21 @@
 # ruff: noqa: F403
 #
 import argparse
+import inspect
+import logging
 import sys
 import typing as t
 from pathlib import Path
-import logging
-import inspect
+
 import yaml
 
 from .common import Project, ProjectError, ProjectWarning, Rule
-
-from .rules.github import *
-from .rules.php import *
-from .rules.js import *
 from .rules.docker import *
+from .rules.github import *
+from .rules.js import *
+from .rules.php import *
 from .rules.python import *
-
+from .rules.rust import *
 
 log = logging.getLogger(__name__)
 

@@ -58,7 +58,7 @@ class PyProject(FileRule):
         dev_deps = data.get("dependency-groups", {}).get("dev", [])
         expected_deps = [
             ["pytest"],
-            ["black", "ruff"],
+            ["ruff"],
             ["mypy", "ty"],
         ]
         for tool_choices in expected_deps:

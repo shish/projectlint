@@ -149,11 +149,11 @@ class ActionVersions(FileRule):
 
     def check_file(self, file: Path) -> t.Iterator[ProjectInfo]:
         ACTION_VERSIONS = {
-            "actions/checkout": "v4",
-            "actions/cache": "v4",
+            "actions/checkout": "v6",
+            "actions/cache": "v5",
             "php-actions/composer": None,  # use default composer or setup-php instead
             "shivammathur/setup-php": "v2",
-            "actions/setup-python": "v5",
+            "actions/setup-python": "v6",
         }
         wf = GithubWorkflow(file)
         data = wf.load()

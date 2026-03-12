@@ -8,10 +8,10 @@ from ..common import ProjectInfo, ProjectError, ProjectWarning, FileRule, Versio
 
 # https://www.php.net/supported-versions.php
 class PHPVersions(Versions):
-    DEPRECATED = ["7", "8.0", "8.1"]
-    STABLE = ["8.2", "8.3", "8.4"]
+    DEPRECATED = ["7", "8.0", "8.1", "8.2", "8.3"]
+    STABLE = ["8.4", "8.5"]
     UNSTABLE = []
-    PLATFORM = "8.2.0"
+    PLATFORM = "8.4.0"
 
 
 class PHPComposerPlatform(FileRule):
