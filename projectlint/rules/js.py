@@ -2,7 +2,7 @@ import json
 import typing as t
 from pathlib import Path
 
-from ..common import ProjectInfo, ProjectWarning, FileRule, Versions
+from ..common import FileRule, ProjectInfo, ProjectWarning, Versions, satisfies_constraint
 
 
 class NodeVersions(Versions):
@@ -15,7 +15,7 @@ class JSPackageDeps(FileRule):
     RELEVANT_PATTERNS = ["package.json"]
     EXPECTED_PACKAGES = {
         "react": "^19",
-        "typescript": "^5.9",
+        "typescript": "^6.0",
         "prettier": "^3.6",
     }
 
@@ -26,7 +26,7 @@ class JSPackageDeps(FileRule):
         deps = {**data.get("dependencies", {}), **data.get("devDependencies", {})}
 
         for package, expected_version in self.EXPECTED_PACKAGES.items():
-            if package in deps and not deps[package].startswith(expected_version):
+            if package in deps and not satisfies_constraint(deps[package], expected_version):
                 yield ProjectWarning(
                     f"{package} should be {expected_version}, is {deps[package]}",
                     file=file,

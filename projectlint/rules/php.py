@@ -1,9 +1,8 @@
 import json
 import typing as t
-import re
 from pathlib import Path
 
-from ..common import ProjectInfo, ProjectError, ProjectWarning, FileRule, Versions
+from ..common import FileRule, ProjectError, ProjectInfo, ProjectWarning, Versions, satisfies_constraint
 
 
 # https://www.php.net/supported-versions.php
@@ -85,9 +84,10 @@ class PHPComposerDeps(FileRule):
             yield ProjectWarning("PHP should be required", file=file, position="require")
         else:
             php_version = data["require"]["php"]
-            if php_version != f"^{PHPVersions.STABLE[0]}":
+            required_php = f"^{PHPVersions.STABLE[0]}"
+            if not satisfies_constraint(php_version, required_php):
                 yield ProjectWarning(
-                    f"should be ^{PHPVersions.STABLE[0]}, is {php_version}",
+                    f"should be {required_php}, is {php_version}",
                     file=file,
                     position="require.php",
                 )
@@ -114,7 +114,10 @@ class PHPComposerDeps(FileRule):
 
                 else:
                     version = data["require-dev"][tool]
-                    if version not in stables:
+                    # Normalize stables to always be a list
+                    stables_list = stables if isinstance(stables, list) else [stables]
+                    # Check if the actual version satisfies any of the required constraints
+                    if not any(satisfies_constraint(version, stable) for stable in stables_list):
                         yield ProjectWarning(
                             f"should be in {stables}, is {version}",
                             file=file,

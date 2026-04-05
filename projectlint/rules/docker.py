@@ -1,9 +1,8 @@
 import typing as t
 from pathlib import Path
 
-from ..common import ProjectInfo, ProjectError, FileRule
-from . import js
-from . import python
+from ..common import FileRule, ProjectError, ProjectInfo, satisfies_constraint
+from . import js, python
 
 
 class DockerBaseImages(FileRule):
@@ -15,6 +14,10 @@ class DockerBaseImages(FileRule):
         "debian": ["trixie", "stable"],  # stable, testing
         "ubuntu": ["24.04", "noble"],
     }
+    # Images that use semantic versioning (can do ^1.94 matching)
+    SEMANTIC_IMAGES = {"node", "python", "rust"}
+    # Images that use named versions (must be exact match)
+    EXACT_MATCH_IMAGES = {"debian", "ubuntu"}
 
     def check_file(self, file: Path) -> t.Iterator[ProjectInfo]:
         internal_tags = []
@@ -39,10 +42,15 @@ class DockerBaseImages(FileRule):
             if ver.startswith("$"):
                 # can't currently check for dynamic tags
                 continue
-            if pkg in self.EXPECTED_IMAGES and not any(
-                ver.startswith(v) for v in self.EXPECTED_IMAGES[pkg]
-            ):
-                yield ProjectError(
-                    f"{pkg} should be {self.EXPECTED_IMAGES[pkg]}, is {ver}",
-                    file=file,
-                )
+            if pkg in self.EXPECTED_IMAGES:
+                # Determine if we should use exact matching or semantic versioning
+                use_exact_match = pkg in self.EXACT_MATCH_IMAGES
+
+                # Check if the version satisfies any of the expected versions
+                if not any(
+                    satisfies_constraint(ver, v, exact_match=use_exact_match) for v in self.EXPECTED_IMAGES[pkg]
+                ):
+                    yield ProjectError(
+                        f"{pkg} should be {self.EXPECTED_IMAGES[pkg]}, is {ver}",
+                        file=file,
+                    )
