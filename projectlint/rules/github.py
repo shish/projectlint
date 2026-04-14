@@ -1,21 +1,19 @@
-import typing as t
-import logging
-import json
 import abc
+import json
+import logging
+import typing as t
 from pathlib import Path
 
 from ..common import (
+    FileRule,
     GithubWorkflow,
-    ProjectInfo,
     ProjectError,
+    ProjectInfo,
     ProjectWarning,
     Rule,
-    FileRule,
     Versions,
 )
-from . import php
-from . import python
-from . import js
+from . import js, php, python
 
 log = logging.getLogger(__name__)
 
@@ -67,13 +65,13 @@ class BaseVersionsMatrix(FileRule):
     all currently-supported versions, and not deprecated ones.
     """
 
+    NAME: str
+    VERSIONS: Versions
     RELEVANT_PATTERNS = [".github/workflows/*.yml"]
 
-    @property
-    @abc.abstractmethod
-    def VERSIONS(cls) -> Versions: ...
-
     def check_file(self, file: Path) -> t.Iterator[ProjectInfo]:
+        if not hasattr(self, "NAME"):
+            return
         wf = GithubWorkflow(file)
         data = wf.load()
         jobs = data.get("jobs", {})
@@ -144,43 +142,6 @@ class PythonVersionSetup(FileRule):
                         )
 
 
-class ActionVersions(FileRule):
-    RELEVANT_PATTERNS = [".github/workflows/*.yml"]
-
-    def check_file(self, file: Path) -> t.Iterator[ProjectInfo]:
-        ACTION_VERSIONS = {
-            "actions/checkout": "v6",
-            "actions/cache": "v5",
-            "php-actions/composer": None,  # use default composer or setup-php instead
-            "shivammathur/setup-php": "v2",
-            "actions/setup-python": "v6",
-        }
-        wf = GithubWorkflow(file)
-        data = wf.load()
-        jobs = data.get("jobs", {})
-        for job_name, job in jobs.items():
-            for step_n, step in enumerate(job.get("steps", [])):
-                if "uses" in step:
-                    if "@" in step["uses"]:
-                        action, version = step["uses"].split("@")
-                    else:
-                        action = step["uses"]
-                        version = None
-                    if action in ACTION_VERSIONS:
-                        if ACTION_VERSIONS[action] is None:
-                            yield ProjectWarning(
-                                f"{action} should not be used",
-                                file=wf.path,
-                                position=f"jobs.{job_name}.steps[{step_n}].uses",
-                            )
-                        elif version != ACTION_VERSIONS[action]:
-                            yield ProjectError(
-                                f"{action} should be {ACTION_VERSIONS[action]}, is {version}",
-                                file=wf.path,
-                                position=f"jobs.{job_name}.steps[{step_n}].uses",
-                            )
-
-
 class VendoredPHPTools(Rule):
     def active(self) -> bool:
         wfs = self.find_files(".github/workflows/*.yml")
@@ -202,6 +163,9 @@ class VendoredPHPTools(Rule):
             "friendsofphp/php-cs-fixer": ["composer format"],
         }
 
+        # Cache workflow data to avoid loading the same file multiple times
+        workflow_data = [wf.load() for wf in wfs]
+
         for dep in dev_deps:
             if dep not in known_tools:
                 continue
@@ -210,8 +174,7 @@ class VendoredPHPTools(Rule):
             log.debug(f"Checking that {dep} is used in a workflow")
 
             tool_used = False
-            for wf in wfs:
-                data = wf.load()
+            for data in workflow_data:
                 for job_name, job in data.get("jobs", {}).items():
                     for step_n, step in enumerate(job.get("steps", [])):
                         if "run" in step:

@@ -13,6 +13,27 @@ class Project:
     def __init__(self, path: Path, ignore_paths: t.Optional[t.List[str]] = None):
         self.path = path
         self.ignore_paths = ignore_paths or []
+        self._file_cache: t.List[Path] = []
+        self._build_file_cache()
+
+    def _build_file_cache(self) -> None:
+        """Build cache of all non-ignored files in the project"""
+        log.debug(f"Building file cache for {self.path}")
+
+        def should_ignore(path: Path) -> bool:
+            return any(part in self.ignore_paths for part in path.parts)
+
+        for root, dirs, files in self.path.walk():
+            # Filter directories in-place to prevent descending into ignored paths
+            dirs[:] = [d for d in dirs if not should_ignore(root / d)]
+
+            # Add files that aren't in ignored paths
+            for f in files:
+                file_path = root / f
+                if not should_ignore(file_path):
+                    self._file_cache.append(file_path)
+
+        log.debug(f"Cached {len(self._file_cache)} files")
 
 
 class ProjectInfo:
@@ -53,11 +74,9 @@ class Rule(abc.ABC):
     def check(self) -> t.Iterable[ProjectInfo]: ...
 
     def find_files(self, pattern: str) -> t.Iterable[Path]:
-        return [
-            p
-            for p in self.project.path.rglob(pattern)
-            if not any(p.parts[i] in self.project.ignore_paths for i in range(len(p.parts)))
-        ]
+        """Find files matching a pattern using the pre-built cache"""
+        # Filter cached files by pattern
+        return [p for p in self.project._file_cache if p.match(pattern)]
 
 
 class FileRule(Rule):

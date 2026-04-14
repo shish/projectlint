@@ -12,8 +12,25 @@ pip install --group dev -e .
 
 ## Run
 
+Single project:
 ```
 python -m projectlint ~/Projects/MyProject
+```
+
+Multiple projects:
+```
+python -m projectlint ~/Projects/Project1 ~/Projects/Project2
+```
+
+Or using shell globbing:
+```
+python -m projectlint ~/Projects/*
+```
+
+When checking multiple projects, each warning/error will be prefixed with the project name:
+```
+Warning: MyProject: /home/user/Projects/MyProject/.github/workflows/test.yml:jobs.test.runs-on: ubuntu-latest is not recommended, use ubuntu-24.04
+Error: OtherProject: /home/user/Projects/OtherProject/composer.json:require-dev.phpstan/phpstan: PHP 8.0 is deprecated
 ```
 
 ## Test

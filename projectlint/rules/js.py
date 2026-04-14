@@ -2,35 +2,13 @@ import json
 import typing as t
 from pathlib import Path
 
-from ..common import FileRule, ProjectInfo, ProjectWarning, Versions, satisfies_constraint
+from ..common import FileRule, ProjectInfo, ProjectWarning, Versions
 
 
 class NodeVersions(Versions):
     DEPRECATED = ["12", "14", "16", "18", "20"]
-    STABLE = ["22"]
-    UNSTABLE = ["24"]
-
-
-class JSPackageDeps(FileRule):
-    RELEVANT_PATTERNS = ["package.json"]
-    EXPECTED_PACKAGES = {
-        "react": "^19",
-        "typescript": "^6.0",
-        "prettier": "^3.6",
-    }
-
-    def check_file(self, file: Path) -> t.Iterator[ProjectInfo]:
-        data = json.load(file.open())
-
-        # merge two dicts
-        deps = {**data.get("dependencies", {}), **data.get("devDependencies", {})}
-
-        for package, expected_version in self.EXPECTED_PACKAGES.items():
-            if package in deps and not satisfies_constraint(deps[package], expected_version):
-                yield ProjectWarning(
-                    f"{package} should be {expected_version}, is {deps[package]}",
-                    file=file,
-                )
+    STABLE = ["22", "24"]
+    UNSTABLE = ["25"]
 
 
 class PrettierConfig(FileRule):
@@ -51,5 +29,25 @@ class PrettierConfig(FileRule):
             if key not in data or data[key] != expected_value:
                 yield ProjectWarning(
                     f"Prettier config '{key}' should be {expected_value}, is {data.get(key)}",
+                    file=file,
+                )
+
+
+class BiomeConfig(FileRule):
+    RELEVANT_PATTERNS = ["biome.json"]
+
+    def check_file(self, file: Path) -> t.Iterator[ProjectInfo]:
+        expected: dict[str, t.Any] = {
+            "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+        }
+        if (file.parent / ".git").exists():
+            expected["vcs"] = {"enabled": True, "clientKind": "git", "useIgnoreFile": True}
+
+        data = json.load(file.open())
+
+        for key, expected_value in expected.items():
+            if key not in data or data[key] != expected_value:
+                yield ProjectWarning(
+                    f"Biome config '{key}' should be {expected_value}, is {data.get(key)}",
                     file=file,
                 )

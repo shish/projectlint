@@ -11,7 +11,7 @@ class DockerBaseImages(FileRule):
         "node": js.NodeVersions.STABLE + js.NodeVersions.UNSTABLE,
         "python": python.PythonVersions.STABLE + python.PythonVersions.UNSTABLE,
         "rust": ["1.94"],
-        "debian": ["trixie", "stable"],  # stable, testing
+        "debian": ["trixie", "stable", "stable-slim"],  # stable, testing
         "ubuntu": ["24.04", "noble"],
     }
     # Images that use semantic versioning (can do ^1.94 matching)
