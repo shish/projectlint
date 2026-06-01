@@ -1,4 +1,3 @@
-import abc
 import json
 import logging
 import typing as t
@@ -132,6 +131,7 @@ class PythonVersionSetup(FileRule):
             for n, step in enumerate(steps):
                 if step.get("uses", "").startswith("actions/setup-python"):
                     version = step.get("with", {}).get("python-version")
+                    version = str(version) if version is not None else None
                     if version is None or "$" in version or ".x" in version:
                         continue
                     if version not in self.VERSIONS.STABLE:

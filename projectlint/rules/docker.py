@@ -2,20 +2,14 @@ import typing as t
 from pathlib import Path
 
 from ..common import FileRule, ProjectError, ProjectInfo, satisfies_constraint
-from . import js, python
 
 
 class DockerBaseImages(FileRule):
     RELEVANT_PATTERNS = ["Dockerfile"]
     EXPECTED_IMAGES = {
-        "node": js.NodeVersions.STABLE + js.NodeVersions.UNSTABLE,
-        "python": python.PythonVersions.STABLE + python.PythonVersions.UNSTABLE,
-        "rust": ["1.94"],
         "debian": ["trixie", "stable", "stable-slim"],  # stable, testing
         "ubuntu": ["24.04", "noble"],
     }
-    # Images that use semantic versioning (can do ^1.94 matching)
-    SEMANTIC_IMAGES = {"node", "python", "rust"}
     # Images that use named versions (must be exact match)
     EXACT_MATCH_IMAGES = {"debian", "ubuntu"}
 

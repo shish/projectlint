@@ -2,3 +2,4 @@
 venv
 projectlint.egg-info/
 __pycache__/
+config.yaml

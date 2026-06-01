@@ -4,6 +4,7 @@
 #
 import argparse
 import cProfile
+import fnmatch
 import inspect
 import logging
 import pstats
@@ -25,6 +26,22 @@ from .rules.python import *
 from .rules.rust import *
 
 log = logging.getLogger(__name__)
+
+
+def matches_baseline(msg: str, baseline_patterns: t.List[str]) -> bool:
+    """Check if a message matches any baseline pattern using glob matching.
+
+    Args:
+        msg: The message to check
+        baseline_patterns: List of patterns that may contain glob wildcards (*)
+
+    Returns:
+        True if the message matches any baseline pattern, False otherwise
+    """
+    for pattern in baseline_patterns:
+        if fnmatch.fnmatch(msg, pattern):
+            return True
+    return False
 
 
 def get_subclasses(cls: t.Type[t.Any]) -> t.List[t.Type[t.Any]]:
@@ -114,7 +131,7 @@ def run_normal(args: argparse.Namespace, profile_mode: bool = False) -> int:
         rule_subclasses: t.List[t.Type[Rule]] = get_rules()
 
     fail = False
-    baseline_issues = set(config.get("baseline", []))
+    baseline_issues = list(config.get("baseline", []))
 
     # Process each project
     for project_path in args.projects:
@@ -155,7 +172,7 @@ def run_normal(args: argparse.Namespace, profile_mode: bool = False) -> int:
                         msg = f"Warning: {project_name}: {info.file}:{info.position}: {info.message}"
                     else:
                         msg = f"Info: {project_name}: {info.file}:{info.position}: {info.message}"
-                    if msg not in baseline_issues:
+                    if not matches_baseline(msg, baseline_issues):
                         print(msg)
 
                 rule_time = time.time() - rule_start

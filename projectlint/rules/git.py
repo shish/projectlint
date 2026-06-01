@@ -1,7 +1,6 @@
 import logging
 import subprocess
 import typing as t
-from pathlib import Path
 
 from ..common import ProjectError, ProjectInfo, Rule
 
@@ -12,7 +11,7 @@ class GitCleanWorkingTree(Rule):
     def active(self) -> bool:
         return (self.project.path / ".git").exists()
 
-    def check_file(self, file: Path) -> t.Iterator[ProjectInfo]:
+    def check(self) -> t.Iterator[ProjectInfo]:
         try:
             # Run git diff to check for modified files
             # --exit-code returns 1 if there are differences, 0 if clean

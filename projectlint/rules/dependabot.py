@@ -80,21 +80,38 @@ class BaseDependabotRule(Rule):
             configured_directories = set()
             for update in config.get("updates", []):
                 if update.get("package-ecosystem") == self.PACKAGE_ECOSYSTEM:
-                    directory = update.get("directory", "/")
-                    # Normalize directory: remove trailing slash unless it's root
-                    directory = directory.rstrip("/")
-                    if not directory:
-                        directory = "/"
-                    configured_directories.add(directory)
+                    # Support both "directory" (single string) and "directories" (list of strings)
+                    directories_to_process = []
+                    if "directories" in update:
+                        directories_value = update["directories"]
+                        if isinstance(directories_value, list):
+                            directories_to_process = directories_value
+                        else:
+                            # If "directories" exists but isn't a list, treat as single value
+                            directories_to_process = [directories_value]
+                    elif "directory" in update:
+                        directories_to_process = [update["directory"]]
+                    else:
+                        # Default to root if neither is specified
+                        directories_to_process = ["/"]
+
+                    for directory in directories_to_process:
+                        # Normalize directory: remove trailing slash unless it's root
+                        directory = directory.rstrip("/")
+                        if not directory:
+                            directory = "/"
+                        configured_directories.add(directory)
 
                     # Check schedule interval
                     schedule = update.get("schedule", {})
                     if schedule.get("interval") != self.SCHEDULE_INTERVAL:
-                        yield ProjectWarning(
-                            f"{self.PACKAGE_ECOSYSTEM} ({directory}) schedule interval should be '{self.SCHEDULE_INTERVAL}', is '{schedule.get('interval')}'",
-                            file=dependabot_file,
-                            position=f"updates[package-ecosystem={self.PACKAGE_ECOSYSTEM},directory={directory}].schedule.interval",
-                        )
+                        for directory in directories_to_process:
+                            directory = directory.rstrip("/") or "/"
+                            yield ProjectWarning(
+                                f"{self.PACKAGE_ECOSYSTEM} ({directory}) schedule interval should be '{self.SCHEDULE_INTERVAL}', is '{schedule.get('interval')}'",
+                                file=dependabot_file,
+                                position=f"updates[package-ecosystem={self.PACKAGE_ECOSYSTEM},directory={directory}].schedule.interval",
+                            )
 
             # Check for missing directories
             missing_directories = expected_directories - configured_directories

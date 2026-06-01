@@ -2,7 +2,7 @@ import tomllib
 import typing as t
 from pathlib import Path
 
-from ..common import FileRule, ProjectInfo, ProjectWarning, Versions
+from ..common import FileRule, ProjectInfo, ProjectWarning
 
 
 class CargoEdition(FileRule):
