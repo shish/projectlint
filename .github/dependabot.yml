@@ -1,6 +1,8 @@
 version: 2
 updates:
 - package-ecosystem: pip
+  assignees:
+    - shish
   directory: /
   schedule:
     interval: monthly

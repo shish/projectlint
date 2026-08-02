@@ -102,6 +102,17 @@ class BaseDependabotRule(Rule):
                             directory = "/"
                         configured_directories.add(directory)
 
+                    # Check assignees
+                    assignees = update.get("assignees", [])
+                    if not isinstance(assignees, list) or len(assignees) == 0:
+                        for directory in directories_to_process:
+                            directory = directory.rstrip("/") or "/"
+                            yield ProjectWarning(
+                                f"{self.PACKAGE_ECOSYSTEM} ({directory}) should have 'assignees' configured",
+                                file=dependabot_file,
+                                position=f"updates[package-ecosystem={self.PACKAGE_ECOSYSTEM},directory={directory}].assignees",
+                            )
+
                     # Check schedule interval
                     schedule = update.get("schedule", {})
                     if schedule.get("interval") != self.SCHEDULE_INTERVAL:
